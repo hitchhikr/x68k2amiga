@@ -2,6 +2,9 @@ X68k2amiga is an Amiga program made to help convert Sharp X68000 executable file
 
 Besides executable files, it can also depack & extract various kind of data files used on the X68000.
 
+A executable (Amgia) is provided but if you want to recompile it you'll need this: https://github.com/bebbo/amiga-gcc
+
+
 v2.5:
 
  - Now handles relocatable executables base offset
