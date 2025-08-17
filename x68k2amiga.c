@@ -24,20 +24,20 @@
 #define SYM_SIZE 4
 
 #define DEC_NUM "\2335;32m%d\2330;31m"
-#define HEX_NUM "\2335;32m$%lx\2330;31m"
+#define HEX_NUM "\2335;32m$%x\2330;31m"
 #define STRING "\2335;32m%s\2330;31m"
 
 /* --------------------------------
    functions
    -------------------------------- */
-void depack_lzx_0_42(unsigned long offset, unsigned char *source, unsigned char *dest, unsigned long *relocs);
-void depack_lzx_1_04(unsigned long offset, unsigned char *source, unsigned char *dest, unsigned long *relocs);
-void depack_lzx_unk(unsigned long offset, unsigned char *source, unsigned char *dest, unsigned long *relocs);
-void depack_lzx_0_31(unsigned long offset, unsigned char *source, unsigned char *dest, unsigned long *relocs);
-int depack_capcom_1(unsigned long size, unsigned char *source, unsigned char *dest, unsigned long offset_relocs, unsigned long size_bss, unsigned long *relocs);
-int depack_capcom_2(unsigned long size, unsigned char *source, unsigned char *dest, unsigned long offset_relocs, unsigned long size_bss, unsigned long *relocs);
-void depack_valis2(unsigned long depacked_length, unsigned char *source, unsigned char *dest, unsigned char *temp);
-int depack_lzp(unsigned long size, unsigned char *source, unsigned char *temp);
+void depack_lzx_0_42(unsigned int offset, unsigned char *source, unsigned char *dest, unsigned int *relocs);
+void depack_lzx_1_04(unsigned int offset, unsigned char *source, unsigned char *dest, unsigned int *relocs);
+void depack_lzx_unk(unsigned int offset, unsigned char *source, unsigned char *dest, unsigned int *relocs);
+void depack_lzx_0_31(unsigned int offset, unsigned char *source, unsigned char *dest, unsigned int *relocs);
+int depack_capcom_1(unsigned int size, unsigned char *source, unsigned char *dest, unsigned int offset_relocs, unsigned int size_bss, unsigned int *relocs);
+int depack_capcom_2(unsigned int size, unsigned char *source, unsigned char *dest, unsigned int offset_relocs, unsigned int size_bss, unsigned int *relocs);
+void depack_valis2(unsigned int depacked_length, unsigned char *source, unsigned char *dest, unsigned char *temp);
+int depack_lzp(unsigned int size, unsigned char *source, unsigned char *temp);
 void flush_cache();
 
 /* --------------------------------
@@ -58,24 +58,24 @@ struct x68_x_header
     unsigned char loadmode;         // 0 = normal
                                     // 1 = minimal memory
                                     // 2 = high address
-    unsigned long base;             // base address (0)
-    unsigned long entrypoint;
-    unsigned long size[5];          // code, data, bss, reloc, symbols
-	unsigned long db_line;	        // size of debugging info (line #)
-	unsigned long db_syms;	        // size of debugging info (symbol)
-	unsigned long db_str;	        // size of debugging info (string)
-	unsigned long reserved2[4];	    // 0
-	unsigned long bindlist;	        // bind list offset
+    unsigned int base;              // base address (0)
+    unsigned int entrypoint;
+    unsigned int size[5];           // code, data, bss, reloc, symbols
+	unsigned int db_line;	        // size of debugging info (line #)
+	unsigned int db_syms;	        // size of debugging info (symbol)
+	unsigned int db_str;	        // size of debugging info (string)
+	unsigned int reserved2[4];	    // 0
+	unsigned int bindlist;	        // bind list offset
 } __attribute__((packed));          // 64/0x40 bytes
 
 struct x68_z_header
 {
 	unsigned short magic;           // 0x601a
-	unsigned long code;
-	unsigned long data;
-	unsigned long bss;
+	unsigned int code;
+	unsigned int data;
+	unsigned int bss;
 	unsigned char reserved[8];
-	unsigned long base;
+	unsigned int base;
 	unsigned short padding;
 } __attribute__((packed));          // 28/0x1c bytes
 
@@ -86,7 +86,7 @@ struct symbol
                                     // 2 = DATA
                                     // 3 = BSS
                                     //
-    unsigned long offset;           // (Always from code segment start)
+    unsigned int offset;            // (Always from code segment start)
 } __attribute__((packed));          // 6 bytes
 
 /* --------------------------------
@@ -106,7 +106,7 @@ FILE *multiplef;
 unsigned char *src = 0;
 unsigned char *mem_code = 0;
 unsigned char *mem_data = 0;
-unsigned long *depacked_relocs = 0;
+unsigned int *depacked_relocs = 0;
 unsigned char *temp_depack_buffer = 0;
 struct AnchorPath AP;
 struct x68_x_header rec_head;
@@ -146,7 +146,7 @@ void exit_func()
 /* --------------------------------
    get a segment number from it's offset in the file
    -------------------------------- */
-int get_segment_number(struct x68_x_header *ah, unsigned long offset)
+int get_segment_number(struct x68_x_header *ah, unsigned int offset)
 {
     if(offset >= 0 && offset < ah->size[CODE_SIZE])
     {
@@ -166,7 +166,7 @@ int get_segment_number(struct x68_x_header *ah, unsigned long offset)
 /* --------------------------------
    get a segment offset in the file from it's number
    -------------------------------- */
-unsigned long get_segment_base_address(struct x68_x_header *ah, int segment)
+unsigned int get_segment_base_address(struct x68_x_header *ah, int segment)
 {
     switch(segment)
     {
@@ -186,14 +186,14 @@ unsigned long get_segment_base_address(struct x68_x_header *ah, int segment)
 int write_reloc_hunk_data(unsigned char *mem_block, struct x68_x_header *ah, int hunk_number,
                           int dest_hunk, int written_hunk, int relocs_count, int base_seg)
 {
-    unsigned long x68_reloc_size;
+    unsigned int x68_reloc_size;
     int r;
     unsigned short reloc_offset;
-    unsigned long reloc_offset_long;
-    unsigned long l;
+    unsigned int reloc_offset_long;
+    unsigned int l;
     unsigned short first_short;
-    unsigned long first_long;
-    unsigned long rel_long;
+    unsigned int first_long;
+    unsigned int rel_long;
     int was_long_jump;
     int cur_segment;
 
@@ -208,9 +208,9 @@ int write_reloc_hunk_data(unsigned char *mem_block, struct x68_x_header *ah, int
         }
         was_long_jump = 0;
         first_long = first_short;
-        fwrite((char *) &relocs_count, sizeof(long), 1, outf);
+        fwrite((char *) &relocs_count, sizeof(int), 1, outf);
         l = written_hunk;
-        fwrite((char *) &l, sizeof(long), 1, outf);
+        fwrite((char *) &l, sizeof(int), 1, outf);
         // write code relocs
         x68_reloc_size = ah->size[RELOC_SIZE];
         while(x68_reloc_size)
@@ -218,18 +218,18 @@ int write_reloc_hunk_data(unsigned char *mem_block, struct x68_x_header *ah, int
             x68_reloc_size -= sizeof(short);
             if(was_long_jump)
             {
-                x68_reloc_size -= sizeof(unsigned long);
+                x68_reloc_size -= sizeof(unsigned int);
                 was_long_jump = 0;
             }
             // reloc is located in this segment
             if(hunk_number == get_segment_number(ah, first_long))
             {
-                cur_segment = get_segment_number(ah, *((unsigned long *) (mem_block + first_long)));
+                cur_segment = get_segment_number(ah, *((unsigned int *) (mem_block + first_long)));
                 // reloc is pointing to the asked segment
                 if(cur_segment == dest_hunk)
                 {
                     rel_long = first_long - base_seg;
-                    fwrite((char *) &rel_long, sizeof(long), 1, outf);
+                    fwrite((char *) &rel_long, sizeof(int), 1, outf);
                 }
             }
             if(!x68_reloc_size) break;
@@ -240,8 +240,8 @@ int write_reloc_hunk_data(unsigned char *mem_block, struct x68_x_header *ah, int
             }
             if(reloc_offset == 1)
             {
-                r = fread(&reloc_offset_long, 1, sizeof(unsigned long), inf);
-                if(r != sizeof(unsigned long))
+                r = fread(&reloc_offset_long, 1, sizeof(unsigned int), inf);
+                if(r != sizeof(unsigned int))
                 {
                     return 0;
                 }
@@ -271,7 +271,7 @@ int write_debug_symbols(struct x68_x_header *ah, int base_reg, int hunk_number)
         int pad_name_len;
         int count;
         int r;
-        unsigned long l;
+        unsigned int l;
         int hunk_written = 0;
 
         count = ah->size[SYM_SIZE];
@@ -300,7 +300,7 @@ int write_debug_symbols(struct x68_x_header *ah, int base_reg, int hunk_number)
                 {
                     return 0;
                 }
-                // read the rest of the name up to 0
+                // read the rest of the name till 0
                 while(sym_name[name_len])
                 {
                     name_len++;
@@ -317,7 +317,7 @@ int write_debug_symbols(struct x68_x_header *ah, int base_reg, int hunk_number)
                     if(!hunk_written)
                     {
                         l = 0x000003f0;
-                        fwrite((char *) &l, sizeof(long), 1, outf);     /* hunk_symbol */
+                        fwrite((char *) &l, sizeof(int), 1, outf);      /* hunk_symbol */
                         hunk_written = 1;                               /* never again */
                     }
                     /* length of symbol in longs */
@@ -325,10 +325,10 @@ int write_debug_symbols(struct x68_x_header *ah, int base_reg, int hunk_number)
                     pad_name_len += 3;
                     pad_name_len &= 0xfffffffc;
                     l = pad_name_len >> 2;
-                    fwrite((char *) &l, sizeof(long), 1, outf);
+                    fwrite((char *) &l, sizeof(int), 1, outf);
                     fwrite((char *) &sym_name, 1, pad_name_len, outf);
                     sym.offset = sym.offset - base_reg;
-                    fwrite((char *) &sym.offset, sizeof(long), 1, outf);
+                    fwrite((char *) &sym.offset, sizeof(int), 1, outf);
                 }
                 if(name_len & 1)
                 {
@@ -343,7 +343,7 @@ int write_debug_symbols(struct x68_x_header *ah, int base_reg, int hunk_number)
             if(hunk_written)
             {
                 l = 0x00000000;
-                fwrite((char *) &l, sizeof(long), 1, outf);                 /* terminator */
+                fwrite((char *) &l, sizeof(int), 1, outf);                  /* terminator */
             }
             printf(" done.\n");
         }
@@ -357,21 +357,21 @@ int write_debug_symbols(struct x68_x_header *ah, int base_reg, int hunk_number)
 int write_hunk(unsigned char *mem_block, int write_offset, int write_size, int real_size, struct x68_x_header *ah, int hunk_number)
 {
     unsigned short first_short;
-    unsigned long first_long;
+    unsigned int first_long;
     unsigned char *mem_to_patch;
-    unsigned long real_count_code_relocs = 0;
-    unsigned long real_count_data_relocs = 0;
-    unsigned long real_count_bss_relocs = 0;
-    unsigned long x68_reloc_size;
+    unsigned int real_count_code_relocs = 0;
+    unsigned int real_count_data_relocs = 0;
+    unsigned int real_count_bss_relocs = 0;
+    unsigned int x68_reloc_size;
     int mem_size;
     int cur_segment = 0;
     int r;
     int cur_hunk = 0;
     int was_long_jump;
     unsigned short reloc_offset;
-    unsigned long reloc_offset_long;
-    unsigned long l;
-    unsigned long pad = 0;
+    unsigned int reloc_offset_long;
+    unsigned int l;
+    unsigned int pad = 0;
 
     mem_size = ah->size[CODE_SIZE] + ah->size[DATA_SIZE] + ah->size[BSS_SIZE];
     mem_to_patch = (unsigned char *) malloc(mem_size);
@@ -402,15 +402,15 @@ int write_hunk(unsigned char *mem_block, int write_offset, int write_size, int r
                 x68_reloc_size -= sizeof(short);
                 if(was_long_jump)
                 {
-                    x68_reloc_size -= sizeof(unsigned long);
+                    x68_reloc_size -= sizeof(unsigned int);
                     was_long_jump = 0;
                 }
                 // check if the reloc is applied into this segment
                 if(hunk_number == get_segment_number(ah, first_long))
                 {
                     // make the displacement relative to this segment
-                    cur_segment = get_segment_number(ah, *((unsigned long *) (mem_block + first_long)));
-                    *((unsigned long *) (mem_to_patch + first_long)) = *((unsigned long *) (mem_block + first_long)) - get_segment_base_address(ah, cur_segment);
+                    cur_segment = get_segment_number(ah, *((unsigned int *) (mem_block + first_long)));
+                    *((unsigned int *) (mem_to_patch + first_long)) = *((unsigned int *) (mem_block + first_long)) - get_segment_base_address(ah, cur_segment);
                     // count the references
                     switch(cur_segment)
                     {
@@ -434,8 +434,8 @@ int write_hunk(unsigned char *mem_block, int write_offset, int write_size, int r
                 }
                 if(reloc_offset == 1)
                 {
-                    r = fread(&reloc_offset_long, 1, sizeof(unsigned long), inf);
-                    if(r != sizeof(unsigned long))
+                    r = fread(&reloc_offset_long, 1, sizeof(unsigned int), inf);
+                    if(r != sizeof(unsigned int))
                     {
                         free(mem_to_patch);
                         return 0;
@@ -473,7 +473,7 @@ int write_hunk(unsigned char *mem_block, int write_offset, int write_size, int r
             printf("Writing RELOC32 hunk...");
             // reloc hunk
             l = 0x000003ec;
-            fwrite((char *) &l, sizeof(long), 1, outf);             // hunk_reloc32
+            fwrite((char *) &l, sizeof(int), 1, outf);             // hunk_reloc32
             if(ah->size[CODE_SIZE])
             {
                 if(!write_reloc_hunk_data(mem_block, ah, hunk_number, 0, cur_hunk, real_count_code_relocs, write_offset))
@@ -502,7 +502,7 @@ int write_hunk(unsigned char *mem_block, int write_offset, int write_size, int r
             }
             // complete the hunk
             l = 0x00000000;
-            fwrite((char *) &l, sizeof(long), 1, outf);     // end the relocs
+            fwrite((char *) &l, sizeof(int), 1, outf);     // end the relocs
             printf(" done.\n");
         }
     }
@@ -512,7 +512,7 @@ int write_hunk(unsigned char *mem_block, int write_offset, int write_size, int r
         return 0;
     }
     l = 0x000003f2;
-    fwrite((char *) &l, sizeof(long), 1, outf);             // end the hunk
+    fwrite((char *) &l, sizeof(int), 1, outf);             // end the hunk
     free(mem_to_patch);
     return 1;
 }
@@ -537,37 +537,37 @@ int main(int argc, char **argv)
 {
     struct x68_x_header ah;
     struct x68_z_header zh;
-    unsigned long code_size;                                // in longwords, not bytes
-    unsigned long data_size;
-    unsigned long packed_size;
-    unsigned long archive_size;
-    unsigned long bss_size;
-    unsigned long orig_code_size;
-    unsigned long total_code_data_bss_size;
-    unsigned long count;
-    unsigned long real_entrypoint;
+    unsigned int code_size;                                 // in longwords, not bytes
+    unsigned int data_size;
+    unsigned int packed_size;
+    unsigned int archive_size;
+    unsigned int bss_size;
+    unsigned int orig_code_size;
+    unsigned int total_code_data_bss_size;
+    unsigned int count;
+    unsigned int real_entrypoint;
     int r;
     int i;
     unsigned short word_data;
-    unsigned long l;
-    unsigned long num_hunks;
+    unsigned int l;
+    unsigned int num_hunks;
     int packed; 
     int pack_dat_offset;
     int pack_method;
-    unsigned long size_depacked;
-    unsigned long offset_relocs;
-    unsigned long size_bss;
-    unsigned long size_depacked_padded;
+    unsigned int size_depacked;
+    unsigned int offset_relocs;
+    unsigned int size_bss;
+    unsigned int size_depacked_padded;
     unsigned char packer_magic[4];
     unsigned char zpd_magic[8];
     unsigned short zpd_idx;
-    unsigned long zpd_smp_offset;
-    unsigned long zpd_smp_size;
-    unsigned long zpd_next_offset;
+    unsigned int zpd_smp_offset;
+    unsigned int zpd_smp_size;
+    unsigned int zpd_next_offset;
     int x_reloc;
     unsigned short word_x_reloc;
     unsigned short word_1 = 1;
-    unsigned long real_x_reloc_size;
+    unsigned int real_x_reloc_size;
 
     printf("\n\2335;32mx68k2amiga\2330;31m v2.5\n");
     printf("Written by Franck Charlet (\2335;32mfranck@hitchhikr.net\2330;31m).\n\n");
@@ -770,7 +770,7 @@ int main(int argc, char **argv)
                     goto archive_bail_out;
                 }
 
-                packed_size = *((unsigned long *) packer_magic);
+                packed_size = *((unsigned int *) packer_magic);
                 // Valis 2 single packed file
                 if(packed_size <= (data_size - 8))
                 {
@@ -884,7 +884,7 @@ not_an_archive:
                     {
                         goto err_file_reading;
                     }
-                    size_depacked = *((unsigned long *) src);
+                    size_depacked = *((unsigned int *) src);
                     mem_data = (unsigned char *) malloc(size_depacked + 16);
                     if(!mem_data)
                     {
@@ -1226,18 +1226,18 @@ err_file_reading:
                             if(pack_method == LZX_CAPCOM_1 || pack_method == LZX_CAPCOM_2)
                             {
                                 // Retrieve second header infos
-                                r = fread((char *) &ah.entrypoint, 1, sizeof(unsigned long), inf);
-                                if(r != sizeof(unsigned long))
+                                r = fread((char *) &ah.entrypoint, 1, sizeof(unsigned int), inf);
+                                if(r != sizeof(unsigned int))
                                 {
                                     goto err_file_reading;
                                 }
-                                r = fread((char *) &offset_relocs, 1, sizeof(unsigned long), inf);
-                                if(r != sizeof(unsigned long))
+                                r = fread((char *) &offset_relocs, 1, sizeof(unsigned int), inf);
+                                if(r != sizeof(unsigned int))
                                 {
                                     goto err_file_reading;
                                 }
-                                r = fread((char *) &size_bss, 1, sizeof(unsigned long), inf);
-                                if(r != sizeof(unsigned long))
+                                r = fread((char *) &size_bss, 1, sizeof(unsigned int), inf);
+                                if(r != sizeof(unsigned int))
                                 {
                                     goto err_file_reading;
                                 }
@@ -1249,8 +1249,8 @@ err_file_reading:
                                 }
                                 else
                                 {
-                                    r = fread((char *) &code_size, 1, sizeof(unsigned long), inf);
-                                    if(r != sizeof(unsigned long))
+                                    r = fread((char *) &code_size, 1, sizeof(unsigned int), inf);
+                                    if(r != sizeof(unsigned int))
                                     {
                                         goto err_file_reading;
                                     }
@@ -1286,7 +1286,7 @@ err_file_reading:
                                     exit(1);
                                 }
                                 memset(mem_code, 0, size_depacked_padded);
-                                depacked_relocs = (unsigned long *) malloc(code_size << 2);
+                                depacked_relocs = (unsigned int *) malloc(code_size << 2);
                                 if(!depacked_relocs)
                                 {
                                     printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) size_bss);
@@ -1361,11 +1361,11 @@ err_file_reading:
                                
                                 if(pack_method == LZX_UNK)
                                 {
-                                    size_depacked = *((unsigned long *) &src[0x72 + pack_dat_offset + real_entrypoint]);
+                                    size_depacked = *((unsigned int *) &src[0x72 + pack_dat_offset + real_entrypoint]);
                                 }
                                 else
                                 {
-                                    size_depacked = *((unsigned long *) &src[0x4e + pack_dat_offset + real_entrypoint]);
+                                    size_depacked = *((unsigned int *) &src[0x4e + pack_dat_offset + real_entrypoint]);
                                 }
                                 size_depacked_padded = ((size_depacked + 3) >> 2) << 2;
                                 mem_code = (unsigned char *) malloc(size_depacked_padded);
@@ -1375,7 +1375,7 @@ err_file_reading:
                                     exit(1);
                                 }
                                 memset(mem_code, 0, size_depacked_padded);
-                                depacked_relocs = (unsigned long *) malloc(size_depacked_padded << 2);
+                                depacked_relocs = (unsigned int *) malloc(size_depacked_padded << 2);
                                 if(!depacked_relocs)
                                 {
                                     printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) size_depacked_padded << 2);
@@ -1487,7 +1487,7 @@ err_file_reading:
                                 {
                                     // long relocation
                                     fwrite((char *) &word_1, sizeof(unsigned short), 1, recf);
-                                    fwrite((char *) &x_reloc, sizeof(unsigned long), 1, recf);
+                                    fwrite((char *) &x_reloc, sizeof(unsigned int), 1, recf);
                                 }
                                 else
                                 {
@@ -1502,28 +1502,28 @@ err_file_reading:
                         fflush(outf);
                         printf("Writing HEADER hunk...");
                         l = 0x000003f3;
-                        fwrite((char *) &l, sizeof(long), 1, outf);                 // hunk_header
+                        fwrite((char *) &l, sizeof(int), 1, outf);                  // hunk_header
                         l = 0x00000000;
-                        fwrite((char *) &l, sizeof(long), 1, outf);                 // end of name list
+                        fwrite((char *) &l, sizeof(int), 1, outf);                  // end of name list
 
-                        fwrite((char *) &num_hunks, sizeof(long), 1, outf);         // table size
+                        fwrite((char *) &num_hunks, sizeof(int), 1, outf);          // table size
                         l = 0x00000000;
-                        fwrite((char *) &l, sizeof(long), 1, outf);                 // first hunk
+                        fwrite((char *) &l, sizeof(int), 1, outf);                  // first hunk
                         --num_hunks;
-                        fwrite((char *) &num_hunks, sizeof(long), 1, outf);         // last hunk
+                        fwrite((char *) &num_hunks, sizeof(int), 1, outf);          // last hunk
                         ++num_hunks;
                         // size of each hunk
                         if(code_size)
                         {
-                            fwrite((char *) &code_size, sizeof(long), 1, outf);
+                            fwrite((char *) &code_size, sizeof(int), 1, outf);
                         }
                         if(data_size)
                         {
-                            fwrite((char *) &data_size, sizeof(long), 1, outf);
+                            fwrite((char *) &data_size, sizeof(int), 1, outf);
                         }
                         if(bss_size)
                         {
-                            fwrite((char *) &bss_size, sizeof(long), 1, outf);
+                            fwrite((char *) &bss_size, sizeof(int), 1, outf);
                         }
                         printf(" done.\n");
                         
@@ -1533,8 +1533,8 @@ err_file_reading:
                             printf("Writing CODE hunk...");
                             // hunk code
                             l = 0x000003e9;
-                            fwrite((char *) &l, sizeof(long), 1, outf);
-                            fwrite((char *) &code_size, sizeof(long), 1, outf);
+                            fwrite((char *) &l, sizeof(int), 1, outf);
+                            fwrite((char *) &code_size, sizeof(int), 1, outf);
                             flush_cache();
                             if(!packed)
                             {
@@ -1573,23 +1573,23 @@ err_file_reading:
                                 {
                                     printf("Writing RELOC32 hunk...");
                                     l = 0x000003ec;
-                                    fwrite((char *) &l, sizeof(long), 1, outf);             // hunk_reloc32
-                                    fwrite((char *) &count, 1, sizeof(long), outf);         // amount of entries
+                                    fwrite((char *) &l, sizeof(int), 1, outf);              // hunk_reloc32
+                                    fwrite((char *) &count, 1, sizeof(int), outf);          // amount of entries
                                     l = 0;
-                                    fwrite((char *) &l, sizeof(long), 1, outf);             // reloc on hunk 0 only
+                                    fwrite((char *) &l, sizeof(int), 1, outf);              // reloc on hunk 0 only
                                     for(i = 0; i < count; i++)
                                     {
-                                        fwrite((char *) &depacked_relocs[i], sizeof(long), 1, outf);
+                                        fwrite((char *) &depacked_relocs[i], sizeof(int), 1, outf);
                                     }
                                     // complete the hunk
                                     l = 0x00000000;
-                                    fwrite((char *) &l, sizeof(long), 1, outf);             // end of reloc
+                                    fwrite((char *) &l, sizeof(int), 1, outf);              // end of reloc
                                     printf(" done.\n");
                                 }
                                 free(mem_code);
                                 mem_code = NULL;
                                 l = 0x000003f2;
-                                fwrite((char *) &l, sizeof(long), 1, outf);                 /* hunk_end */
+                                fwrite((char *) &l, sizeof(int), 1, outf);                  // hunk_end
                                 goto archive_bail_out;
                             }
                         }
@@ -1600,8 +1600,8 @@ err_file_reading:
                             printf("Writing DATA hunk...");
                             // hunk data
                             l = 0x000003ea;
-                            fwrite((char *) &l, sizeof(long), 1, outf);
-                            fwrite((char *) &data_size, sizeof(long), 1, outf);
+                            fwrite((char *) &l, sizeof(int), 1, outf);
+                            fwrite((char *) &data_size, sizeof(int), 1, outf);
                             if(!write_hunk(mem_code, ah.size[CODE_SIZE], data_size << 2, ah.size[DATA_SIZE], &ah, 1))
                             {
                                 goto err_file_reading;
@@ -1614,15 +1614,15 @@ err_file_reading:
                             printf("Writing BSS hunk...");
                             // hunk bss
                             l = 0x000003eb;
-                            fwrite((char *) &l, sizeof(long), 1, outf);
-                            fwrite((char *) &bss_size, sizeof(long), 1, outf);
+                            fwrite((char *) &l, sizeof(int), 1, outf);
+                            fwrite((char *) &bss_size, sizeof(int), 1, outf);
                             printf(" done.\n");
                             if(!write_debug_symbols(&ah, ah.size[CODE_SIZE] + ah.size[DATA_SIZE], 2))
                             {
                                 goto err_file_reading;
                             }
                             l = 0x000003f2;
-                            fwrite((char *) &l, sizeof(long), 1, outf);
+                            fwrite((char *) &l, sizeof(int), 1, outf);
                         }
                         break;
                 }
