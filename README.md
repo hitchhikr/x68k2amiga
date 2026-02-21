@@ -2,7 +2,13 @@ X68k2amiga is an Amiga program made to help convert Sharp X68000 executable file
 
 Besides executable files, it can also depack & extract various kind of data files used on the X68000.
 
-A executable (Amiga) is provided but if you want to recompile it you'll need this: https://github.com/bebbo/amiga-gcc
+A executable (Amiga) is provided but if you want to recompile it you'll need this: https://github.com/walkero-gr/bebbo-amiga-gcc
+Precompiled suite with installer: http://franke.ms/download/setup-amiga-gcc.exe
+
+v2.6:
+
+ - Better reconstruction of packed executables.
+ - Can now depack .R executables packed with LZX 0.42.
 
 v2.5:
 

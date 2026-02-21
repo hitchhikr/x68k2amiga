@@ -1,5 +1,5 @@
 /* --------------------------------
-   x68k2amiga v2.5
+   x68k2amiga v2.6
    Written by Franck "hitchhikr" Charlet.
    -------------------------------- */
 
@@ -16,6 +16,8 @@
    -------------------------------- */
 #define MAGIC_X 0x4855
 #define MAGIC_Z 0x601a
+
+#define VERSION "2.6"
 
 #define CODE_SIZE 0
 #define DATA_SIZE 1
@@ -97,8 +99,9 @@ char multiple_name[512];
 char source_name[512];
 char dest_name[512];
 char reconstr_name[512];
+char extension[12];
 unsigned char sar_name[16];
-unsigned char packer_sign[180 + 8];
+unsigned char packer_sign[280 + 8];
 FILE *inf;
 FILE *outf;
 FILE *recf;
@@ -470,7 +473,7 @@ int write_hunk(unsigned char *mem_block, int write_offset, int write_size, int r
         first_long = first_short;
         if(first_long && (real_count_code_relocs + real_count_data_relocs + real_count_bss_relocs))
         {
-            printf("Writing RELOC32 hunk...");
+            printf("Writing RELOC32 hunk (" DEC_NUM " entries)...", real_count_code_relocs + real_count_data_relocs + real_count_bss_relocs);
             // reloc hunk
             l = 0x000003ec;
             fwrite((char *) &l, sizeof(int), 1, outf);             // hunk_reloc32
@@ -540,6 +543,9 @@ int main(int argc, char **argv)
     unsigned int code_size;                                 // in longwords, not bytes
     unsigned int data_size;
     unsigned int packed_size;
+    unsigned int depacked_code_size;
+    unsigned int depacked_data_size;
+    unsigned int depacked_bss_size;
     unsigned int archive_size;
     unsigned int bss_size;
     unsigned int orig_code_size;
@@ -558,7 +564,7 @@ int main(int argc, char **argv)
     unsigned int offset_relocs;
     unsigned int size_bss;
     unsigned int size_depacked_padded;
-    unsigned char packer_magic[4];
+    unsigned char packer_magic[12];
     unsigned char zpd_magic[8];
     unsigned short zpd_idx;
     unsigned int zpd_smp_offset;
@@ -569,7 +575,7 @@ int main(int argc, char **argv)
     unsigned short word_1 = 1;
     unsigned int real_x_reloc_size;
 
-    printf("\n\2335;32mx68k2amiga\2330;31m v2.5\n");
+    printf("\n\2335;32mx68k2amiga\2330;31m v" VERSION "\n");
     printf("Written by Franck Charlet (\2335;32mfranck@hitchhikr.net\2330;31m).\n\n");
     if(argc < 2 || argc > 3)
     {
@@ -591,11 +597,11 @@ int main(int argc, char **argv)
                     // a destination name for each source name
                     argc = 2;
                 }
-                
-                // free possible previous data
-                free_stuff();
                 // retrieve filename
                 strcpy(source_name, (char *) AP.ap_Info.fib_FileName);
+                // free possible previous data
+                free_stuff();
+restart:
                 code_size = 0;
                 data_size = 0;
                 bss_size = 0;
@@ -611,7 +617,7 @@ int main(int argc, char **argv)
                 if(argc != 3)
                 {
                     strcpy(dest_name, source_name);
-                    strcat(dest_name, ".am");
+                    strcat(dest_name, ".amiga");
                 }
                 else
                 {
@@ -620,12 +626,21 @@ int main(int argc, char **argv)
 
                 // (used in case of packed executable)
                 strcpy(reconstr_name, source_name);
-                // Human68k won't accept double dots in filename
-                if(reconstr_name[strlen(reconstr_name) - 2] == '.')
+
+                i = strlen(reconstr_name);
+                while(reconstr_name[i] != '.' && i)
                 {
-                    reconstr_name[strlen(reconstr_name) - 2] = '_';
+                    i--;
                 }
-                strcat(reconstr_name, ".x");
+                if(i > 4)
+                {
+                    i = 4;
+                }
+                reconstr_name[i] = '\0';
+                strcpy(extension, &reconstr_name[i + 1]);
+                i = strlen(reconstr_name);
+                strcat(reconstr_name, "_dec.");
+                strcat(reconstr_name, extension);
 
                 printf("Converting '" STRING "' to '" STRING "'...\n", source_name, dest_name);
 
@@ -646,7 +661,8 @@ int main(int argc, char **argv)
                 if(packer_magic[0] == 'S' &&
                    packer_magic[1] == 'A' &&
                    packer_magic[2] == 'R' &&
-                   packer_magic[3] == 0x1a)
+                   packer_magic[3] == 0x1a
+                  )
                 {
                     printf("\n");
                     printf("File type: \2335;32mSAR packed archive\2330;31m\n");
@@ -734,7 +750,8 @@ int main(int argc, char **argv)
                 if(packer_magic[0] == 'L' &&
                    packer_magic[1] == 'Z' &&
                    packer_magic[2] == 'P' &&
-                   packer_magic[3] == 0x1a)
+                   packer_magic[3] == 0x1a
+                  )
                 {
                     printf("\n");
                     printf("File type: \2335;32mLZP packed data\2330;31m\n");
@@ -904,6 +921,114 @@ not_an_archive:
                     printf(" done.\n");
                     printf("\nWriting binary data...");
                     fwrite(mem_data, 1, size_depacked, outf);
+                    printf(" done.\n");
+                    goto archive_bail_out;
+                }
+
+                // check if it's an LZX 0.42 packed raw executable file
+                if(packer_magic[4] == 'L' &&
+                   packer_magic[5] == 'Z' &&
+                   packer_magic[6] == 'X' &&
+                   packer_magic[7] == ' ' &&
+                   packer_magic[8] == '0' &&
+                   packer_magic[9] == '.' &&
+                   packer_magic[10] == '4' &&
+                   packer_magic[11] == '2'
+                  )
+                {
+                    printf("\nRaw executable packed with: \2335;32mLZX v0.42\2330;31m.\n");
+                    
+                    src = (unsigned char *) malloc(data_size << 1);
+                    if(!src)
+                    {
+                        printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) data_size << 1);
+                        exit(1);
+                    }
+                    memset(src, 0, data_size << 1);
+                    r = fread(src, 1, data_size, inf);
+                    if(r != data_size)
+                    {
+                        goto err_file_reading;
+                    }
+                    real_entrypoint = (src[14 + 0] << 24) |
+                                      (src[14 + 1] << 16) |
+                                      (src[14 + 2] << 8) |
+                                      (src[14 + 3])
+                                      ;
+                    
+                    if(real_entrypoint)
+                    {
+                        printf("\nDepacked entry point: " HEX_NUM "\n", real_entrypoint);
+                    }
+                    depacked_code_size = (src[18 + 0] << 24) |
+                                         (src[18 + 1] << 16) |
+                                         (src[18 + 2] << 8) |
+                                         (src[18 + 3])
+                                         ;
+                    size_depacked_padded = ((depacked_code_size + 3) >> 2) << 2;
+                    mem_code = (unsigned char *) malloc(size_depacked_padded);
+                    if(!mem_code)
+                    {
+                        printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) size_depacked_padded);
+                        exit(1);
+                    }
+                    memset(mem_code, 0, size_depacked_padded);
+                    depacked_relocs = (unsigned int *) malloc(size_depacked_padded << 2);
+                    if(!depacked_relocs)
+                    {
+                        printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) size_depacked_padded << 2);
+                        exit(1);
+                    }
+                    memset(depacked_relocs, 0, size_depacked_padded << 2);
+
+                    pack_dat_offset = -60;
+                    printf("\nDepacking (depacked size: " DEC_NUM " bytes)...", (int) depacked_code_size);
+                    // fix for the depacker 
+                    src[8] = 0;
+                    src[9] = 0;
+                    src[10] = 0;
+                    src[11] = 0;
+                    depack_lzx_0_42(pack_dat_offset, src, mem_code, depacked_relocs);
+                    printf(" done.\n");
+
+                    // reconstruct an X68000 executable
+                    recf = fopen(reconstr_name, "wb");
+                    if(!recf)
+                    {
+                        printf("Error opening file '" STRING "'.\n", reconstr_name);
+                        exit(1);
+                    }
+                    printf("\nCreating depacked " STRING " raw executable...", "X68000");
+                    fwrite(mem_code, 1, depacked_code_size, recf);
+                    printf(" done.\n");
+
+                    printf("\nCreating " STRING " executable (for reversing purposes)...\n\n", "Amiga");
+                    fflush(outf);
+                    num_hunks = 1;
+                    printf("Writing HEADER hunk (" DEC_NUM " hunk%s)...", num_hunks, num_hunks > 1 ? "s" : "");
+                    l = 0x000003f3;
+                    fwrite((char *) &l, sizeof(int), 1, outf);                  // hunk_header
+                    l = 0x00000000;
+                    fwrite((char *) &l, sizeof(int), 1, outf);                  // end of name list
+                    code_size = ((depacked_code_size + 3) >> 2);
+                    fwrite((char *) &num_hunks, sizeof(int), 1, outf);          // table size
+                    l = 0x00000000;
+                    fwrite((char *) &l, sizeof(int), 1, outf);                  // first hunk
+                    --num_hunks;
+                    fwrite((char *) &num_hunks, sizeof(int), 1, outf);          // last hunk
+                    ++num_hunks;
+                    fwrite((char *) &code_size, sizeof(int), 1, outf);
+                    printf(" done.\n");
+
+                    printf("Writing CODE hunk (" DEC_NUM " bytes)...", size_depacked_padded);
+                    // hunk code
+                    l = 0x000003e9;
+                    fwrite((char *) &l, sizeof(int), 1, outf);
+                    fwrite((char *) &code_size, sizeof(int), 1, outf);
+                    fwrite(mem_code, 1, size_depacked_padded, outf);
+                    flush_cache();
+                    l = 0x000003f2;
+                    fwrite((char *) &l, sizeof(int), 1, outf);
                     printf(" done.\n");
                     goto archive_bail_out;
                 }
@@ -1093,16 +1218,16 @@ err_file_reading:
 
                         /* look for packers signature */
                         fseek(inf, 0, SEEK_END);
-                        if(ftell(inf) >= (180 + sizeof(ah) + real_entrypoint))
+                        if(ftell(inf) >= (280 + sizeof(ah) + real_entrypoint))
                         {
-                            fseek(inf, sizeof(ah) + real_entrypoint, SEEK_SET);
-                            r = fread(packer_sign, 1, 180, inf);
-                            if(r != 180)
+                            fseek(inf, sizeof(ah), SEEK_SET);
+                            r = fread(packer_sign, 1, 280, inf);
+                            if(r != 280)
                             {
                                 goto err_file_reading;
                             }
 
-                            for(i = 0; i < 180; i++)
+                            for(i = 0; i < 280; i++)
                             {
                                 if(packer_sign[i] == 'L' &&
                                    packer_sign[i + 1] == 'Z' &&
@@ -1132,6 +1257,7 @@ err_file_reading:
                                 {
                                     printf("\nFile packed with: \2335;32mLZX v0.42\2330;31m.\n");
                                     packed = 1;
+                                    // starts at 4
                                     pack_dat_offset = i;
                                     pack_method = LZX_0_42;
                                     break;
@@ -1223,6 +1349,9 @@ err_file_reading:
                         }
                         if(packed)
                         {
+                            depacked_code_size = 0;
+                            depacked_data_size = 0;
+                            depacked_bss_size = 0;
                             if(pack_method == LZX_CAPCOM_1 || pack_method == LZX_CAPCOM_2)
                             {
                                 // Retrieve second header infos
@@ -1246,6 +1375,17 @@ err_file_reading:
                                     // The data packed size isn't in the header,
                                     // subtract the header and depacker size.
                                     code_size = ah.size[CODE_SIZE] - 206 - 156;
+
+                                    depacked_code_size = (packer_sign[8 + 0] << 24) |
+                                                         (packer_sign[8 + 1] << 16) |
+                                                         (packer_sign[8 + 2] << 8) |
+                                                         (packer_sign[8 + 3])
+                                                         ;
+                                    depacked_bss_size = (packer_sign[12 + 0] << 24) |
+                                                        (packer_sign[12 + 1] << 16) |
+                                                        (packer_sign[12 + 2] << 8) |
+                                                        (packer_sign[12 + 3])
+                                                        ;
                                 }
                                 else
                                 {
@@ -1254,6 +1394,16 @@ err_file_reading:
                                     {
                                         goto err_file_reading;
                                     }
+                                    depacked_code_size = (packer_sign[4 + 0] << 24) |
+                                                         (packer_sign[4 + 1] << 16) |
+                                                         (packer_sign[4 + 2] << 8) |
+                                                         (packer_sign[4 + 3])
+                                                         ;
+                                    depacked_bss_size = (packer_sign[8 + 0] << 24) |
+                                                        (packer_sign[8 + 1] << 16) |
+                                                        (packer_sign[8 + 2] << 8) |
+                                                        (packer_sign[8 + 3])
+                                                        ;
                                 }
                                 if(ah.entrypoint)
                                 {
@@ -1306,38 +1456,41 @@ err_file_reading:
                             }
                             else
                             {
+                                // packed size
                                 code_size = ah.size[CODE_SIZE] + ah.size[DATA_SIZE] + ah.size[RELOC_SIZE] + sizeof(ah);
                                 fseek(inf, 0, SEEK_SET);
-                                switch(pack_method)
+                                if(pack_method != LZX_UNK)
                                 {
-                                    case LZX_0_31:
-                                        ah.entrypoint = (packer_sign[14 + 0] << 24) |
-                                                        (packer_sign[14 + 1] << 16) |
-                                                        (packer_sign[14 + 2] << 8) |
-                                                        (packer_sign[14 + 3])
+                                    ah.entrypoint = (packer_sign[14 + 0] << 24) |
+                                                    (packer_sign[14 + 1] << 16) |
+                                                    (packer_sign[14 + 2] << 8) |
+                                                    (packer_sign[14 + 3])
+                                                    ;
+                                    depacked_code_size = (packer_sign[18 + 0] << 24) |
+                                                         (packer_sign[18 + 1] << 16) |
+                                                         (packer_sign[18 + 2] << 8) |
+                                                         (packer_sign[18 + 3])
+                                                         ;
+                                    depacked_data_size = (packer_sign[22 + 0] << 24) |
+                                                         (packer_sign[22 + 1] << 16) |
+                                                         (packer_sign[22 + 2] << 8) |
+                                                         (packer_sign[22 + 3])
+                                                         ;
+                                    depacked_bss_size = (packer_sign[26 + 0] << 24) |
+                                                        (packer_sign[26 + 1] << 16) |
+                                                        (packer_sign[26 + 2] << 8) |
+                                                        (packer_sign[26 + 3])
                                                         ;
-                                        break;
-                                    case LZX_0_42:
-                                        ah.entrypoint = (packer_sign[14 + 0] << 24) |
-                                                        (packer_sign[14 + 1] << 16) |
-                                                        (packer_sign[14 + 2] << 8) |
-                                                        (packer_sign[14 + 3])
-                                                        ;
-                                        break;
-                                    case LZX_1_04:
-                                        ah.entrypoint = (packer_sign[14 + 0] << 24) |
-                                                        (packer_sign[14 + 1] << 16) |
-                                                        (packer_sign[14 + 2] << 8) |
-                                                        (packer_sign[14 + 3])
-                                                        ;
-                                        break;
-                                    case LZX_UNK:
-                                        ah.entrypoint = (packer_sign[46 + 0] << 24) |
-                                                        (packer_sign[46 + 1] << 16) |
-                                                        (packer_sign[46 + 2] << 8) |
-                                                        (packer_sign[46 + 3])
-                                                        ;
-                                        break;
+                                    // fix it
+                                    depacked_code_size = depacked_code_size - (depacked_data_size + depacked_bss_size);
+                                }
+                                else
+                                {
+                                    ah.entrypoint = (packer_sign[46 + 0] << 24) |
+                                                    (packer_sign[46 + 1] << 16) |
+                                                    (packer_sign[46 + 2] << 8) |
+                                                    (packer_sign[46 + 3])
+                                                    ;
                                 }
                                  
                                 if(ah.entrypoint)
@@ -1362,6 +1515,8 @@ err_file_reading:
                                 if(pack_method == LZX_UNK)
                                 {
                                     size_depacked = *((unsigned int *) &src[0x72 + pack_dat_offset + real_entrypoint]);
+                                    // we can't reconstruct this one properly
+                                    depacked_code_size = size_depacked;
                                 }
                                 else
                                 {
@@ -1381,7 +1536,7 @@ err_file_reading:
                                     printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) size_depacked_padded << 2);
                                     exit(1);
                                 }
-                                memset(depacked_relocs, 0, size_depacked_padded);
+                                memset(depacked_relocs, 0, size_depacked_padded << 2);
                                 printf("\nDepacking (depacked size: " DEC_NUM " bytes)...", (int) size_depacked);
                                 switch(pack_method)
                                 {
@@ -1400,7 +1555,18 @@ err_file_reading:
                                 }
                             }
                             printf(" done.\n");
-                            code_size = size_depacked_padded >> 2;
+                            ah.size[CODE_SIZE] = code_size;
+                            ah.size[DATA_SIZE] = data_size;
+                            ah.size[BSS_SIZE] = bss_size;
+                            code_size = (depacked_code_size + 3) >> 2;
+                            if(depacked_data_size)
+                            {
+                                data_size = (depacked_data_size + 3) >> 2;
+                            }
+                            if(depacked_bss_size)
+                            {
+                                bss_size = (depacked_bss_size + 3) >> 2;
+                            }
                         }
                         else
                         {
@@ -1435,9 +1601,11 @@ err_file_reading:
                                 printf("Error opening file '" STRING "'.\n", reconstr_name);
                                 exit(1);
                             }
-                            printf("\nRecreating depacked " STRING " executable...\n\n", "X68000");
+                            printf("\nCreating depacked " STRING " executable...\n\n", "X68000");
                             rec_head.magic = MAGIC_X;
-                            rec_head.size[CODE_SIZE] = code_size << 2;
+                            rec_head.size[CODE_SIZE] = depacked_code_size;
+                            rec_head.size[DATA_SIZE] = depacked_data_size;
+                            rec_head.size[BSS_SIZE] = depacked_bss_size;
                             rec_head.entrypoint = ah.entrypoint;
                             count = 0;
                             while(depacked_relocs[count] != -1)
@@ -1464,13 +1632,32 @@ err_file_reading:
                                 real_x_reloc_size += 2;
                             }
                             rec_head.size[RELOC_SIZE] = real_x_reloc_size;
-                            printf("Writing header...");
+                            ah.size[RELOC_SIZE] = real_x_reloc_size;
+                            printf("Writing X68000 header (" DEC_NUM " bytes)...", (int) sizeof(struct x68_x_header));
                             fwrite(&rec_head, sizeof(struct x68_x_header), 1, recf);
                             printf(" done.\n");
-                            printf("Writing data...");
-                            fwrite(mem_code, 1, code_size << 2, recf);
+                            
+                            if(depacked_data_size)
+                            {
+                                printf("Writing X68000 CODE (" DEC_NUM " bytes)...", depacked_code_size);
+                            }
+                            else
+                            {
+                                printf("Writing X68000 CODE+DATA+BSS (" DEC_NUM " bytes)...", depacked_code_size);
+                            }
+                            fwrite(mem_code, 1, depacked_code_size, recf);
+                            if(depacked_data_size)
+                            {
+                                printf(" done.\n");
+                                printf("Writing X68000 DATA (" DEC_NUM " bytes)...", depacked_data_size);
+                                fwrite(mem_code + depacked_code_size, 1, depacked_data_size, recf);
+                            }
                             printf(" done.\n");
-                            printf("Writing relocations...");
+                            if(depacked_bss_size)
+                            {
+                                printf("X68000 BSS is " DEC_NUM " bytes.\n", depacked_bss_size);
+                            }
+                            printf("Writing X68000 relocations (" DEC_NUM " entries)...", count);
                             for(i = 0; i < count; i++)
                             {
                                 if(i == 0)
@@ -1495,12 +1682,19 @@ err_file_reading:
                                     fwrite((char *) &word_x_reloc, sizeof(unsigned short), 1, recf);
                                 }
                             }
-                            printf(" done.\n");
+                            ah.size[RELOC_SIZE] = bss_size;
+                            printf(" done.\n\n");
+                            free_stuff();
+                            sprintf(multiple_name, "delete \"%s\" >nil:", dest_name);
+                            system(multiple_name);
+                            // restart the whole process with the depacked exe
+                            strcpy(source_name, reconstr_name);
+                            goto restart; 
                         }
 
-                        printf("\nCreating " STRING " executable (for reversing purposes)...\n\n", "Amiga");
+                        printf("Creating " STRING " executable (for reversing purposes)...\n\n", "Amiga");
                         fflush(outf);
-                        printf("Writing HEADER hunk...");
+                        printf("Writing HEADER hunk (" DEC_NUM " hunk%s)...", num_hunks, num_hunks > 1 ? "s" : "");
                         l = 0x000003f3;
                         fwrite((char *) &l, sizeof(int), 1, outf);                  // hunk_header
                         l = 0x00000000;
@@ -1530,78 +1724,42 @@ err_file_reading:
                         // store the code hunk
                         if(code_size)
                         {
-                            printf("Writing CODE hunk...");
+                            printf("Writing CODE hunk (" DEC_NUM " bytes)...", code_size << 2);
                             // hunk code
                             l = 0x000003e9;
                             fwrite((char *) &l, sizeof(int), 1, outf);
                             fwrite((char *) &code_size, sizeof(int), 1, outf);
                             flush_cache();
-                            if(!packed)
+                            total_code_data_bss_size = ah.size[CODE_SIZE] + ah.size[DATA_SIZE] + ah.size[BSS_SIZE];
+                            mem_code = (unsigned char *) malloc(total_code_data_bss_size);
+                            if(!mem_code)
                             {
-                                total_code_data_bss_size = ah.size[CODE_SIZE] + ah.size[DATA_SIZE] + ah.size[BSS_SIZE];
-                                mem_code = (unsigned char *) malloc(total_code_data_bss_size);
-                                if(!mem_code)
-                                {
-                                    printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) (total_code_data_bss_size));
-                                    exit(1);
-                                }
-                                memset(mem_code, 0, total_code_data_bss_size);
-                                // read the data
-                                fseek(inf, sizeof(struct x68_x_header), SEEK_SET);
-                                r = fread(mem_code, 1, ah.size[CODE_SIZE] + ah.size[DATA_SIZE], inf);
-                                if(r != (ah.size[CODE_SIZE] + ah.size[DATA_SIZE]))
-                                {
-                                    goto err_file_reading;
-                                }
-                                if(!write_hunk(mem_code, 0, code_size << 2, ah.size[CODE_SIZE], &ah, 0))
-                                {
-                                    goto err_file_reading;
-                                }
+                                printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) (total_code_data_bss_size));
+                                exit(1);
                             }
-                            else
+                            memset(mem_code, 0, total_code_data_bss_size);
+                            // read the data
+                            fseek(inf, sizeof(struct x68_x_header), SEEK_SET);
+                            r = fread(mem_code, 1, ah.size[CODE_SIZE] + ah.size[DATA_SIZE], inf);
+                            if(r != (ah.size[CODE_SIZE] + ah.size[DATA_SIZE]))
                             {
-                                fwrite(mem_code, 1, code_size << 2, outf);
-                                printf(" done.\n");
-                                count = 0;
-                                // relocs hunk for packed files (always 1 segment)
-                                // last relocation mark = -1
-                                while(depacked_relocs[count] != -1)
-                                {
-                                    count++;
-                                }
-                                if(count)
-                                {
-                                    printf("Writing RELOC32 hunk...");
-                                    l = 0x000003ec;
-                                    fwrite((char *) &l, sizeof(int), 1, outf);              // hunk_reloc32
-                                    fwrite((char *) &count, 1, sizeof(int), outf);          // amount of entries
-                                    l = 0;
-                                    fwrite((char *) &l, sizeof(int), 1, outf);              // reloc on hunk 0 only
-                                    for(i = 0; i < count; i++)
-                                    {
-                                        fwrite((char *) &depacked_relocs[i], sizeof(int), 1, outf);
-                                    }
-                                    // complete the hunk
-                                    l = 0x00000000;
-                                    fwrite((char *) &l, sizeof(int), 1, outf);              // end of reloc
-                                    printf(" done.\n");
-                                }
-                                free(mem_code);
-                                mem_code = NULL;
-                                l = 0x000003f2;
-                                fwrite((char *) &l, sizeof(int), 1, outf);                  // hunk_end
-                                goto archive_bail_out;
+                                goto err_file_reading;
+                            }
+                            if(!write_hunk(mem_code, 0, code_size << 2, ah.size[CODE_SIZE], &ah, 0))
+                            {
+                                goto err_file_reading;
                             }
                         }
 
                         // store the data hunk
                         if(data_size)
                         {
-                            printf("Writing DATA hunk...");
+                            printf("Writing DATA hunk (" DEC_NUM " bytes)...", data_size << 2);
                             // hunk data
                             l = 0x000003ea;
                             fwrite((char *) &l, sizeof(int), 1, outf);
                             fwrite((char *) &data_size, sizeof(int), 1, outf);
+                            flush_cache();
                             if(!write_hunk(mem_code, ah.size[CODE_SIZE], data_size << 2, ah.size[DATA_SIZE], &ah, 1))
                             {
                                 goto err_file_reading;
@@ -1611,12 +1769,13 @@ err_file_reading:
                         // store the bss hunk
                         if(bss_size)
                         {
-                            printf("Writing BSS hunk...");
+                            printf("Writing BSS hunk (" DEC_NUM " bytes)...", bss_size << 2);
                             // hunk bss
                             l = 0x000003eb;
                             fwrite((char *) &l, sizeof(int), 1, outf);
                             fwrite((char *) &bss_size, sizeof(int), 1, outf);
                             printf(" done.\n");
+                            flush_cache();
                             if(!write_debug_symbols(&ah, ah.size[CODE_SIZE] + ah.size[DATA_SIZE], 2))
                             {
                                 goto err_file_reading;

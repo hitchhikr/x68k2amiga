@@ -1,7 +1,7 @@
 TARGET = x68k2amiga
 OBJS = x68k2amiga.o depackers.o
 LIB_PATH = 
-CFLAGS = -Wall -O3
+CFLAGS = -Wall -Os -fomit-frame-pointer -fno-strict-aliasing -m68000 -noixemul
 XTRA_INCLUDES = -I./
 
 CC = m68k-amigaos-gcc
@@ -23,7 +23,7 @@ $(TARGET): $(OBJS)
 	$(AS) -m68000 -o $@ $(ASFLAGS) $<
 
 %.o: %.c
-	$(CC) $(CC_INCLUDE) $(CFLAGS) -fomit-frame-pointer -fno-strict-aliasing -m68000 -noixemul -c -o $@ $<
+	$(CC) $(CC_INCLUDE) $(CFLAGS) -c -o $@ $<
 
 .PHONY : clean
 

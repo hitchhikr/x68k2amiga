@@ -1,5 +1,5 @@
 # --------------------------------
-# x68k2amiga v2.5
+# x68k2amiga v2.6
 # Written by Franck "hitchhikr" Charlet.
 # --------------------------------
 
