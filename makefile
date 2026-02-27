@@ -28,4 +28,4 @@ $(TARGET): $(OBJS)
 .PHONY : clean
 
 clean :
-	-$(RM) -f $(OBJS) $(TARGET)
+	-$(RM) -f $(OBJS)

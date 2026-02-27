@@ -381,7 +381,7 @@ int write_hunk(unsigned char *mem_block, int write_offset, int write_size, int r
     if(!mem_to_patch)
     {
         printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", mem_size);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     memcpy(mem_to_patch, mem_block, mem_size);
 
@@ -530,7 +530,7 @@ void print_usage()
            "\n\2335;32mUsage: x68k2amiga <X68000 file> [amiga file]"
            "\2330;31m\n\n"
           );
-    exit(1);
+    exit(EXIT_FAILURE);
 }
 
 /* --------------------------------
@@ -610,7 +610,7 @@ restart:
                 if(!inf)
                 {
                     printf("Error opening file '" STRING "'.\n", source_name);
-                    exit(1);
+                    exit(EXIT_FAILURE);
                 }
 
                 // create a filename if none was supplied
@@ -702,7 +702,7 @@ restart:
                         if(!src)
                         {
                             printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) data_size);
-                            exit(1);
+                            exit(EXIT_FAILURE);
                         }
                         r = fread(src, 1, data_size, inf);
                         if(r != data_size)
@@ -713,7 +713,7 @@ restart:
                         if(!multiplef)
                         {
                             printf("\nError opening file '" STRING "'.\n", sar_name);
-                            exit(1);
+                            exit(EXIT_FAILURE);
                         }
                         if(i == 16)
                         {
@@ -743,7 +743,7 @@ restart:
                 if(!outf)
                 {
                     printf("Error opening file '" STRING "'.\n", dest_name);
-                    exit(1);
+                    exit(EXIT_FAILURE);
                 }
 
                 // check if it's an LZP packed data file
@@ -761,7 +761,7 @@ restart:
                     if(!src)
                     {
                         printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) data_size + (128 * 1024));
-                        exit(1);
+                        exit(EXIT_FAILURE);
                     }
                     memset(src, 0, data_size + (128 * 1024));
                     // allocate the temporary buffer
@@ -769,7 +769,7 @@ restart:
                     if(!mem_data)
                     {
                         printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) (128 * 1024));
-                        exit(1);
+                        exit(EXIT_FAILURE);
                     }
                     memset(mem_data, 0, (128 * 1024));
                     // read the packed data
@@ -811,7 +811,7 @@ restart:
                             if(!temp_depack_buffer)
                             {
                                 printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) (64 * 1024));
-                                exit(1);
+                                exit(EXIT_FAILURE);
                             }
 
                             // we don't need that one
@@ -838,13 +838,13 @@ restart:
                                 if(!multiplef)
                                 {
                                     printf("\nError opening file '" STRING "'.\n", multiple_name);
-                                    exit(1);
+                                    exit(EXIT_FAILURE);
                                 }
                                 src = (unsigned char *) malloc(packed_size - 8);
                                 if(!src)
                                 {
                                     printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) packed_size - 8);
-                                    exit(1);
+                                    exit(EXIT_FAILURE);
                                 }
                                 memset(src, 0, packed_size - 8);
                                 r = fread(&size_depacked, 1, 4, inf);
@@ -861,7 +861,7 @@ restart:
                                 if(!mem_data)
                                 {
                                     printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) size_depacked + 16);
-                                    exit(1);
+                                    exit(EXIT_FAILURE);
                                 }
                                 memset(mem_data, 0, size_depacked + 16);
                                 memset(temp_depack_buffer, 0, (64 * 1024));
@@ -891,7 +891,7 @@ not_an_archive:
                     if(!src)
                     {
                         printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) data_size - 4);
-                        exit(1);
+                        exit(EXIT_FAILURE);
                     }
                     memset(src, 0, data_size - 4);
                     // read the packed data
@@ -906,14 +906,14 @@ not_an_archive:
                     if(!mem_data)
                     {
                         printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) size_depacked + 16);
-                        exit(1);
+                        exit(EXIT_FAILURE);
                     }
                     memset(mem_data, 0, size_depacked + 16);
                     temp_depack_buffer = (unsigned char *) malloc(64 * 1024);
                     if(!temp_depack_buffer)
                     {
                         printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) (64 * 1024));
-                        exit(1);
+                        exit(EXIT_FAILURE);
                     }
                     memset(temp_depack_buffer, 0, (64 * 1024));
                     printf("\nDepacking...");
@@ -942,7 +942,7 @@ not_an_archive:
                     if(!src)
                     {
                         printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) data_size << 1);
-                        exit(1);
+                        exit(EXIT_FAILURE);
                     }
                     memset(src, 0, data_size << 1);
                     r = fread(src, 1, data_size, inf);
@@ -970,14 +970,14 @@ not_an_archive:
                     if(!mem_code)
                     {
                         printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) size_depacked_padded);
-                        exit(1);
+                        exit(EXIT_FAILURE);
                     }
                     memset(mem_code, 0, size_depacked_padded);
                     depacked_relocs = (unsigned int *) malloc(size_depacked_padded << 2);
                     if(!depacked_relocs)
                     {
                         printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) size_depacked_padded << 2);
-                        exit(1);
+                        exit(EXIT_FAILURE);
                     }
                     memset(depacked_relocs, 0, size_depacked_padded << 2);
 
@@ -996,7 +996,7 @@ not_an_archive:
                     if(!recf)
                     {
                         printf("Error opening file '" STRING "'.\n", reconstr_name);
-                        exit(1);
+                        exit(EXIT_FAILURE);
                     }
                     printf("\nCreating depacked " STRING " raw executable...", "X68000");
                     fwrite(mem_code, 1, depacked_code_size, recf);
@@ -1089,7 +1089,7 @@ not_an_archive:
                         if(!temp_depack_buffer)
                         {
                             printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) (zpd_smp_size));
-                            exit(1);
+                            exit(EXIT_FAILURE);
                         }
                         printf("\nReading " DEC_NUM " bytes from offset " DEC_NUM "...", (int) zpd_smp_size, (int) zpd_smp_offset);
 
@@ -1106,7 +1106,7 @@ not_an_archive:
                         if(!multiplef)
                         {
                             printf("\nError opening file '" STRING "'.\n", multiple_name);
-                            exit(1);
+                            exit(EXIT_FAILURE);
                         }
                         printf("Writing " DEC_NUM " bytes to file '" STRING "'...", (int) zpd_smp_size, multiple_name);
 
@@ -1136,7 +1136,7 @@ not_an_archive:
                 {
 err_file_reading:
                     printf("\nError while reading file '" STRING "'.\n", source_name);
-                    exit(1);
+                    exit(EXIT_FAILURE);
                 }
 
                 if(ah.magic != MAGIC_X &&
@@ -1176,7 +1176,7 @@ err_file_reading:
                         if(!src)
                         {
                             printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) code_size);
-                            exit(1);
+                            exit(EXIT_FAILURE);
                         }
                         memset(src, 0, code_size);
                         code_size -= zh.bss;
@@ -1210,7 +1210,7 @@ err_file_reading:
                         if(ah.size[CODE_SIZE] == 0)
                         {
                             printf("\nFile appears to be corrupted.\n");
-                            exit(1);
+                            exit(EXIT_FAILURE);
                         }
 
                         packed = 0;
@@ -1418,7 +1418,7 @@ err_file_reading:
                                 if(!src)
                                 {
                                     printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) code_size);
-                                    exit(1);
+                                    exit(EXIT_FAILURE);
                                 }
                                 memset(src, 0, code_size);
                                 // read the packed data
@@ -1433,14 +1433,14 @@ err_file_reading:
                                 if(!mem_code)
                                 {
                                     printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) size_depacked_padded);
-                                    exit(1);
+                                    exit(EXIT_FAILURE);
                                 }
                                 memset(mem_code, 0, size_depacked_padded);
                                 depacked_relocs = (unsigned int *) malloc(code_size << 2);
                                 if(!depacked_relocs)
                                 {
                                     printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) size_bss);
-                                    exit(1);
+                                    exit(EXIT_FAILURE);
                                 }
                                 memset(depacked_relocs, 0, code_size << 2);
                                 printf("\nDepacking (packed size: " DEC_NUM " bytes)...", (int) code_size);
@@ -1501,7 +1501,7 @@ err_file_reading:
                                 if(!src)
                                 {
                                     printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) code_size);
-                                    exit(1);
+                                    exit(EXIT_FAILURE);
                                 }
                                 memset(src, 0, code_size);
 
@@ -1527,14 +1527,14 @@ err_file_reading:
                                 if(!mem_code)
                                 {
                                     printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) size_depacked_padded);
-                                    exit(1);
+                                    exit(EXIT_FAILURE);
                                 }
                                 memset(mem_code, 0, size_depacked_padded);
                                 depacked_relocs = (unsigned int *) malloc(size_depacked_padded << 2);
                                 if(!depacked_relocs)
                                 {
                                     printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) size_depacked_padded << 2);
-                                    exit(1);
+                                    exit(EXIT_FAILURE);
                                 }
                                 memset(depacked_relocs, 0, size_depacked_padded << 2);
                                 printf("\nDepacking (depacked size: " DEC_NUM " bytes)...", (int) size_depacked);
@@ -1599,7 +1599,7 @@ err_file_reading:
                             if(!recf)
                             {
                                 printf("Error opening file '" STRING "'.\n", reconstr_name);
-                                exit(1);
+                                exit(EXIT_FAILURE);
                             }
                             printf("\nCreating depacked " STRING " executable...\n\n", "X68000");
                             rec_head.magic = MAGIC_X;
@@ -1735,7 +1735,7 @@ err_file_reading:
                             if(!mem_code)
                             {
                                 printf("\nCannot allocate " DEC_NUM " bytes of memory.\n", (int) (total_code_data_bss_size));
-                                exit(1);
+                                exit(EXIT_FAILURE);
                             }
                             memset(mem_code, 0, total_code_data_bss_size);
                             // read the data
