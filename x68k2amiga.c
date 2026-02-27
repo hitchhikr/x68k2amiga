@@ -1794,5 +1794,5 @@ archive_bail_out:;
         printf("Can't open specified file.\n\n");
         print_usage();
     }
-    exit(0);
+    exit(EXIT_SUCCESS);
 }
