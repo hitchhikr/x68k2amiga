@@ -632,14 +632,14 @@ restart:
                 {
                     i--;
                 }
-                if(i > 4)
+                strcpy(extension, &reconstr_name[i]);
+                if(i >= 5)
                 {
-                    i = 4;
+                    i -= 3;
                 }
-                reconstr_name[i] = '\0';
-                strcpy(extension, &reconstr_name[i + 1]);
+                reconstr_name[i] = 0;
                 i = strlen(reconstr_name);
-                strcat(reconstr_name, "_dec.");
+                strcat(reconstr_name, "dec");
                 strcat(reconstr_name, extension);
 
                 printf("Converting '" STRING "' to '" STRING "'...\n", source_name, dest_name);
